@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tra PIC phụ trách nguyên vật liệu</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    :root {
+      --apple-red: #d00000;
+      --glass-bg: rgba(255, 255, 255, 0.45);
+      --border-glass: rgba(255, 255, 255, 0.25);
+      --blur-amount: 16px;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(120deg, #ececec, #f7f7f7, #eaeaea);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+    }
+
+    .container {
+      width: 560px;
+      padding: 40px 50px;
+      border-radius: 24px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--blur-amount));
+      -webkit-backdrop-filter: blur(var(--blur-amount));
+      border: 1px solid var(--border-glass);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      text-align: center;
+      transition: 0.4s ease;
+    }
+
+    .container:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+    .header { font-size: 22px; font-weight: 600; color: #1d1d1f; margin-bottom: 28px; }
+    input, button { border-radius: 999px; font-size: 16px; padding: 14px 18px; }
+    button { background: var(--apple-red); color: white; border: none; cursor: pointer; font-weight: 600; }
+    button:hover { background: #b00000; }
+    #results { margin-top: 28px; text-align: left; }
+    .card { background: rgba(255,255,255,0.8); border-radius: 20px; padding: 22px 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    .card strong { color: var(--apple-red); }
+    footer { margin-top: 24px; font-size: 13px; color: #555; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container" id="login">
+    <div class="header">🔒 Nhập mật khẩu để truy cập</div>
+    <input type="password" id="pwd" placeholder="Mật khẩu...">
+    <br><br>
+    <button onclick="unlock()">Xác nhận</button>
+    <p id="msg" style="color:red;"></p>
+  </div>
+
+  <div class="container" id="main" style="display:none;">
+    <div class="header">Tra PIC phụ trách nguyên vật liệu</div>
+    <div class="search-box">
+      <input type="text" id="searchBox" placeholder="Nhập code hoặc tên nguyên liệu...">
+      <button id="btnSearch">Tìm</button>
+      <div id="suggestions"></div>
+    </div>
+    <div id="results"></div>
+    <footer>© 2025 Ajinomoto Vietnam – Long Thanh Production Planning</footer>
+  </div>
+
+  <script>
+    let allData = [];
+
+    async function unlock() {
+      const pwd = document.getElementById("pwd").value;
+      const msg = document.getElementById("msg");
+      try {
+        const res = await fetch("AutoUpdatePIC.enc");
+        const encText = await res.text();
+
+        // Giải mã nội dung
+        const bytes = CryptoJS.AES.decrypt(encText, pwd);
+        const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+        if (!decrypted) throw new Error("Sai mật khẩu hoặc file lỗi!");
+
+        allData = JSON.parse(decrypted);
+
+        // Ẩn màn hình đăng nhập, hiện web chính
+        document.getElementById("login").style.display = "none";
+        document.getElementById("main").style.display = "block";
+      } catch (err) {
+        msg.textContent = "❌ Sai mật khẩu hoặc không đọc được dữ liệu!";
+      }
+    }
+
+    const input = document.getElementById("searchBox");
+    const resultsBox = document.getElementById("results");
+    const suggestions = document.getElementById("suggestions");
+
+    input?.addEventListener("input", () => {
+      const keyword = input.value.trim().toLowerCase();
+      suggestions.innerHTML = "";
+      if (!keyword) return;
+
+      const filtered = allData.filter(r =>
+        r.Code?.toLowerCase().includes(keyword) ||
+        r["Material name"]?.toLowerCase().includes(keyword)
+      ).slice(0, 8);
+
+      filtered.forEach(r => {
+        const div = document.createElement("div");
+        div.className = "suggestion-item";
+        div.textContent = `${r.Code} – ${r["Material name"]}`;
+        div.onclick = () => {
+          input.value = r.Code;
+          suggestions.innerHTML = "";
+          displayCard(r);
+        };
+        suggestions.appendChild(div);
+      });
+    });
+
+    document.getElementById("btnSearch")?.addEventListener("click", search);
+    input?.addEventListener("keypress", e => { if (e.key === "Enter") search(); });
+
+    function search() {
+      const keyword = input.value.trim().toLowerCase();
+      if (!keyword) return;
+      const found = allData.find(r =>
+        r.Code?.toLowerCase() === keyword ||
+        r["Material name"]?.toLowerCase().includes(keyword)
+      );
+      if (found) displayCard(found);
+      else resultsBox.innerHTML = "<p>❌ Không tìm thấy kết quả phù hợp.</p>";
+      suggestions.innerHTML = "";
+    }
+
+    function displayCard(item) {
+      resultsBox.innerHTML = `
+        <div class="card">
+          <p><strong>Code:</strong> ${item.Code}</p>
+          <p><strong>Material:</strong> ${item["Material name"]}</p>
+          <p><strong>PIC:</strong> ${item.PIC}</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
