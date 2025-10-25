@@ -36,33 +36,154 @@
       transition: 0.4s ease;
     }
 
-    .container:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
-    .header { font-size: 22px; font-weight: 600; color: #1d1d1f; margin-bottom: 28px; }
-    input, button { border-radius: 999px; font-size: 16px; padding: 14px 18px; }
-    button { background: var(--apple-red); color: white; border: none; cursor: pointer; font-weight: 600; }
-    button:hover { background: #b00000; }
-    #results { margin-top: 28px; text-align: left; }
-    .card { background: rgba(255,255,255,0.8); border-radius: 20px; padding: 22px 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-    .card strong { color: var(--apple-red); }
-    footer { margin-top: 24px; font-size: 13px; color: #555; text-align: center; }
+    .container:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+
+    .header {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      color: #1d1d1f;
+      margin-bottom: 28px;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1px solid rgba(255,255,255,0.6);
+      border-radius: 999px;
+      font-size: 16px;
+      outline: none;
+      background: rgba(255,255,255,0.8);
+      transition: 0.2s ease;
+    }
+
+    input:focus {
+      background: rgba(255,255,255,0.95);
+      border-color: var(--apple-red);
+      box-shadow: 0 0 0 4px rgba(208,0,0,0.08);
+    }
+
+    button {
+      background: var(--apple-red);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 26px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.25s;
+    }
+
+    button:hover {
+      background: #b00000;
+    }
+
+    #suggestions {
+      position: absolute;
+      top: 52px;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      overflow: hidden;
+      max-height: 200px;
+      overflow-y: auto;
+      text-align: left;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+
+    .suggestion-item {
+      padding: 12px 18px;
+      font-size: 15px;
+      color: #1d1d1f;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .suggestion-item:hover {
+      background: rgba(240,240,240,0.7);
+    }
+
+    #results {
+      margin-top: 28px;
+      text-align: left;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 22px 26px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.15);
+    }
+
+    .card p {
+      font-size: 16px;
+      margin: 6px 0;
+      color: #2e2e2e;
+    }
+
+    .card strong {
+      color: var(--apple-red);
+    }
+
+    footer {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #555;
+      text-align: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
+  <!-- 🔐 Màn hình nhập mật khẩu -->
   <div class="container" id="login">
     <div class="header">🔒 Nhập mật khẩu để truy cập</div>
-    <input type="password" id="pwd" placeholder="Mật khẩu...">
+    <input type="password" id="pwd" placeholder="Nhập mật khẩu...">
     <br><br>
     <button onclick="unlock()">Xác nhận</button>
     <p id="msg" style="color:red;"></p>
   </div>
 
+  <!-- 💾 Trang chính sau khi nhập đúng -->
   <div class="container" id="main" style="display:none;">
     <div class="header">Tra PIC phụ trách nguyên vật liệu</div>
+
     <div class="search-box">
       <input type="text" id="searchBox" placeholder="Nhập code hoặc tên nguyên liệu...">
       <button id="btnSearch">Tìm</button>
       <div id="suggestions"></div>
     </div>
+
     <div id="results"></div>
     <footer>© 2025 Ajinomoto Vietnam – Long Thanh Production Planning</footer>
   </div>
@@ -77,17 +198,15 @@
         const res = await fetch("AutoUpdatePIC.enc");
         const encText = await res.text();
 
-        // Giải mã nội dung
         const bytes = CryptoJS.AES.decrypt(encText, pwd);
         const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-        if (!decrypted) throw new Error("Sai mật khẩu hoặc file lỗi!");
+        if (!decrypted) throw new Error();
 
         allData = JSON.parse(decrypted);
 
-        // Ẩn màn hình đăng nhập, hiện web chính
         document.getElementById("login").style.display = "none";
         document.getElementById("main").style.display = "block";
-      } catch (err) {
+      } catch {
         msg.textContent = "❌ Sai mật khẩu hoặc không đọc được dữ liệu!";
       }
     }
