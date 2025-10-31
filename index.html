@@ -209,8 +209,8 @@
   <script>
     let allData = [];
 
-    async function loadData(retry = 0) {
-      const maxRetries = 3;
+    // 🔹 Tải JSON từ GitHub, luôn lấy bản mới nhất (no cache)
+    async function loadData() {
       const url = "https://raw.githubusercontent.com/mindolla24/WebCheckPIC/main/AutoUpdatePIC.json?v=" + new Date().getTime();
       const status = document.getElementById("status");
       const lastUpdate = document.getElementById("lastUpdate");
@@ -226,7 +226,7 @@
         status.textContent = "Dữ liệu đã sẵn sàng";
         status.className = "ready";
 
-        // 🔹 Lấy commit mới nhất từ GitHub API
+        // 🕓 Lấy commit mới nhất từ GitHub
         const commitRes = await fetch("https://api.github.com/repos/mindolla24/WebCheckPIC/commits?path=AutoUpdatePIC.json");
         const commitData = await commitRes.json();
         if (commitData?.length > 0) {
@@ -235,13 +235,11 @@
         } else {
           lastUpdate.textContent = "Không xác định thời gian cập nhật";
         }
-
       } catch (err) {
-        console.warn("⚠️ Lỗi tải dữ liệu:", err);
+        console.error("❌ Lỗi tải dữ liệu:", err);
         status.textContent = "Không thể tải dữ liệu";
         status.className = "loading";
         lastUpdate.textContent = "";
-        if (retry < maxRetries) setTimeout(() => loadData(retry + 1), 4000);
       }
     }
 
@@ -258,13 +256,14 @@
 
       const filtered = allData.filter(r =>
         r.Code?.toLowerCase().includes(keyword) ||
-        r["Material name"]?.toLowerCase().includes(keyword)
+        r["Material name"]?.toLowerCase().includes(keyword) ||
+        r["Material Name"]?.toLowerCase().includes(keyword)
       ).slice(0, 8);
 
       filtered.forEach(r => {
         const div = document.createElement("div");
         div.className = "suggestion-item";
-        div.textContent = `${r.Code} – ${r["Material name"]}`;
+        div.textContent = `${r.Code} – ${r["Material name"] || r["Material Name"]}`;
         div.onclick = () => {
           input.value = r.Code;
           suggestions.innerHTML = "";
@@ -282,7 +281,8 @@
       if (!keyword) return;
       const found = allData.find(r =>
         r.Code?.toLowerCase() === keyword ||
-        r["Material name"]?.toLowerCase().includes(keyword)
+        r["Material name"]?.toLowerCase().includes(keyword) ||
+        r["Material Name"]?.toLowerCase().includes(keyword)
       );
       if (found) displayCard(found);
       else resultsBox.innerHTML = "<p style='text-align:center;'>❌ Không tìm thấy kết quả phù hợp.</p>";
@@ -293,7 +293,7 @@
       resultsBox.innerHTML = `
         <div class="card">
           <p><strong>Code:</strong> ${item.Code}</p>
-          <p><strong>Material:</strong> ${item["Material name"]}</p>
+          <p><strong>Material:</strong> ${item["Material name"] || item["Material Name"]}</p>
           <p><strong>PIC:</strong> ${item.PIC}</p>
         </div>
       `;
