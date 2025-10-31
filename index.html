@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tra PIC phụ trách nguyên vật liệu</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
     :root {
       --apple-red: #d00000;
@@ -165,17 +164,7 @@
   </style>
 </head>
 <body>
-  <!-- 🔐 Màn hình nhập mật khẩu -->
-  <div class="container" id="login">
-    <div class="header">🔒 Nhập mật khẩu để truy cập</div>
-    <input type="password" id="pwd" placeholder="Nhập mật khẩu...">
-    <br><br>
-    <button onclick="unlock()">Xác nhận</button>
-    <p id="msg" style="color:red;"></p>
-  </div>
-
-  <!-- 💾 Trang chính sau khi nhập đúng -->
-  <div class="container" id="main" style="display:none;">
+  <div class="container" id="main">
     <div class="header">Tra PIC phụ trách nguyên vật liệu</div>
 
     <div class="search-box">
@@ -191,25 +180,17 @@
   <script>
     let allData = [];
 
-    async function unlock() {
-      const pwd = document.getElementById("pwd").value;
-      const msg = document.getElementById("msg");
+    // 🔹 Tự động tải dữ liệu từ file JSON (không cần mật khẩu)
+    async function loadData() {
       try {
-        const res = await fetch("AutoUpdatePIC.enc");
-        const encText = await res.text();
-
-        const bytes = CryptoJS.AES.decrypt(encText, pwd);
-        const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-        if (!decrypted) throw new Error();
-
-        allData = JSON.parse(decrypted);
-
-        document.getElementById("login").style.display = "none";
-        document.getElementById("main").style.display = "block";
+        const res = await fetch("AutoUpdatePIC.json");
+        allData = await res.json();
       } catch {
-        msg.textContent = "❌ Sai mật khẩu, ngươi là ai?";
+        document.getElementById("results").innerHTML = "<p>❌ Không thể tải dữ liệu.</p>";
       }
     }
+
+    loadData();
 
     const input = document.getElementById("searchBox");
     const resultsBox = document.getElementById("results");
@@ -265,4 +246,3 @@
   </script>
 </body>
 </html><!-- redeploy -->
-
