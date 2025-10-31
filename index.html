@@ -7,10 +7,10 @@
   <style>
     :root {
       --apple-red: #d00000;
-      --apple-green: #34c759;
       --glass-bg: rgba(255, 255, 255, 0.45);
       --border-glass: rgba(255, 255, 255, 0.25);
       --blur-amount: 16px;
+      --green: #00b300;
     }
 
     body {
@@ -55,6 +55,7 @@
       align-items: center;
       gap: 10px;
       position: relative;
+      justify-content: center;
     }
 
     input {
@@ -86,8 +87,28 @@
       transition: 0.25s;
     }
 
-    button:hover {
-      background: #b00000;
+    button:hover { background: #b00000; }
+
+    #status {
+      margin-top: 10px;
+      font-size: 13px;
+      text-align: center;
+      transition: 0.3s;
+      color: #555;
+      line-height: 1.4em;
+    }
+
+    #status.ready b { color: var(--green); }
+    #status.loading { color: #ff8c00; }
+
+    /* 💡 Hiệu ứng chớp sáng khi cập nhật */
+    .flash {
+      animation: flashFade 0.8s ease;
+    }
+    @keyframes flashFade {
+      0% { color: var(--green); opacity: 1; }
+      50% { color: #7fff7f; opacity: 0.6; }
+      100% { color: var(--green); opacity: 1; }
     }
 
     #suggestions {
@@ -117,31 +138,6 @@
 
     .suggestion-item:hover {
       background: rgba(240,240,240,0.7);
-    }
-
-    /* 🔹 Trạng thái dữ liệu */
-    #status {
-      text-align: center;
-      font-size: 13px;
-      color: #777;
-      margin-top: 8px;
-      opacity: 0.9;
-      transition: 0.4s ease;
-    }
-
-    #status.ready {
-      color: var(--apple-green);
-    }
-
-    #status.loading {
-      color: #999;
-    }
-
-    #lastUpdate {
-      font-size: 12px;
-      color: #777;
-      margin-top: 4px;
-      text-align: center;
     }
 
     #results {
@@ -199,47 +195,37 @@
       <div id="suggestions"></div>
     </div>
 
-    <div id="status" class="loading">Dữ liệu chưa sẵn sàng</div>
-    <div id="lastUpdate">Đang tải thời gian cập nhật...</div>
-
+    <div id="status" class="loading">⏳ Đang tải dữ liệu...</div>
     <div id="results"></div>
+
     <footer>© 2025 Ajinomoto Vietnam – Long Thanh Production Planning</footer>
   </div>
 
   <script>
     let allData = [];
 
-    // 🔹 Tải JSON từ GitHub, luôn lấy bản mới nhất (no cache)
+    // 🔹 Tải JSON từ GitHub + cập nhật thời gian
     async function loadData() {
-      const url = "https://raw.githubusercontent.com/mindolla24/WebCheckPIC/main/AutoUpdatePIC.json?v=" + new Date().getTime();
       const status = document.getElementById("status");
-      const lastUpdate = document.getElementById("lastUpdate");
-
       try {
-        status.textContent = "Đang tải dữ liệu...";
+        status.innerHTML = "⏳ Đang tải dữ liệu...";
         status.className = "loading";
 
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
+        const res = await fetch(`https://raw.githubusercontent.com/mindolla24/WebCheckPIC/main/AutoUpdatePIC.json?ver=${Date.now()}`);
         allData = await res.json();
 
-        status.textContent = "Dữ liệu đã sẵn sàng";
-        status.className = "ready";
+        const now = new Date();
+        const timeString = now.toLocaleTimeString("vi-VN", { hour12: false });
+        const dateString = now.toLocaleDateString("vi-VN");
 
-        // 🕓 Lấy commit mới nhất từ GitHub
-        const commitRes = await fetch("https://api.github.com/repos/mindolla24/WebCheckPIC/commits?path=AutoUpdatePIC.json");
-        const commitData = await commitRes.json();
-        if (commitData?.length > 0) {
-          const last = new Date(commitData[0].commit.committer.date);
-          lastUpdate.textContent = "Cập nhật lần cuối: " + last.toLocaleString("vi-VN");
-        } else {
-          lastUpdate.textContent = "Không xác định thời gian cập nhật";
-        }
-      } catch (err) {
-        console.error("❌ Lỗi tải dữ liệu:", err);
-        status.textContent = "Không thể tải dữ liệu";
-        status.className = "loading";
-        lastUpdate.textContent = "";
+        status.innerHTML = `<b>Dữ liệu đã sẵn sàng</b><br><span style="font-size: 12px; color: #666;">Cập nhật lần cuối: ${timeString} ${dateString}</span>`;
+        status.className = "ready flash"; // 💡 hiệu ứng chớp sáng
+
+        setTimeout(() => status.classList.remove("flash"), 800);
+
+      } catch {
+        status.textContent = "❌ Không thể tải dữ liệu.";
+        status.className = "";
       }
     }
 
@@ -256,14 +242,13 @@
 
       const filtered = allData.filter(r =>
         r.Code?.toLowerCase().includes(keyword) ||
-        r["Material name"]?.toLowerCase().includes(keyword) ||
-        r["Material Name"]?.toLowerCase().includes(keyword)
+        r["Material name"]?.toLowerCase().includes(keyword)
       ).slice(0, 8);
 
       filtered.forEach(r => {
         const div = document.createElement("div");
         div.className = "suggestion-item";
-        div.textContent = `${r.Code} – ${r["Material name"] || r["Material Name"]}`;
+        div.textContent = `${r.Code} – ${r["Material name"]}`;
         div.onclick = () => {
           input.value = r.Code;
           suggestions.innerHTML = "";
@@ -281,11 +266,10 @@
       if (!keyword) return;
       const found = allData.find(r =>
         r.Code?.toLowerCase() === keyword ||
-        r["Material name"]?.toLowerCase().includes(keyword) ||
-        r["Material Name"]?.toLowerCase().includes(keyword)
+        r["Material name"]?.toLowerCase().includes(keyword)
       );
       if (found) displayCard(found);
-      else resultsBox.innerHTML = "<p style='text-align:center;'>❌ Không tìm thấy kết quả phù hợp.</p>";
+      else resultsBox.innerHTML = "<p>❌ Không tìm thấy kết quả phù hợp.</p>";
       suggestions.innerHTML = "";
     }
 
@@ -293,11 +277,17 @@
       resultsBox.innerHTML = `
         <div class="card">
           <p><strong>Code:</strong> ${item.Code}</p>
-          <p><strong>Material:</strong> ${item["Material name"] || item["Material Name"]}</p>
+          <p><strong>Material:</strong> ${item["Material name"]}</p>
           <p><strong>PIC:</strong> ${item.PIC}</p>
         </div>
       `;
     }
+
+    // 🔁 Auto reload data mỗi 60 giây
+    setInterval(() => {
+      console.log("🔄 Kiểm tra dữ liệu mới...");
+      loadData();
+    }, 60000);
   </script>
 </body>
 </html>
