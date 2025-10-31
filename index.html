@@ -7,6 +7,7 @@
   <style>
     :root {
       --apple-red: #d00000;
+      --apple-green: #34c759;
       --glass-bg: rgba(255, 255, 255, 0.45);
       --border-glass: rgba(255, 255, 255, 0.25);
       --blur-amount: 16px;
@@ -118,6 +119,31 @@
       background: rgba(240,240,240,0.7);
     }
 
+    /* 🔹 Trạng thái dữ liệu */
+    #status {
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+      margin-top: 8px;
+      opacity: 0.9;
+      transition: 0.4s ease;
+    }
+
+    #status.ready {
+      color: var(--apple-green);
+    }
+
+    #status.loading {
+      color: #999;
+    }
+
+    #lastUpdate {
+      font-size: 12px;
+      color: #777;
+      margin-top: 4px;
+      text-align: center;
+    }
+
     #results {
       margin-top: 28px;
       text-align: left;
@@ -173,6 +199,9 @@
       <div id="suggestions"></div>
     </div>
 
+    <div id="status" class="loading">Dữ liệu chưa sẵn sàng</div>
+    <div id="lastUpdate">Đang tải thời gian cập nhật...</div>
+
     <div id="results"></div>
     <footer>© 2025 Ajinomoto Vietnam – Long Thanh Production Planning</footer>
   </div>
@@ -180,13 +209,39 @@
   <script>
     let allData = [];
 
-    // 🔹 Tự động tải dữ liệu từ file JSON (không cần mật khẩu)
-    async function loadData() {
+    async function loadData(retry = 0) {
+      const maxRetries = 3;
+      const url = "https://raw.githubusercontent.com/mindolla24/WebCheckPIC/main/AutoUpdatePIC.json?v=" + new Date().getTime();
+      const status = document.getElementById("status");
+      const lastUpdate = document.getElementById("lastUpdate");
+
       try {
-        const res = await fetch("AutoUpdatePIC.json");
+        status.textContent = "Đang tải dữ liệu...";
+        status.className = "loading";
+
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
         allData = await res.json();
-      } catch {
-        document.getElementById("results").innerHTML = "<p>❌ Không thể tải dữ liệu.</p>";
+
+        status.textContent = "Dữ liệu đã sẵn sàng";
+        status.className = "ready";
+
+        // 🔹 Lấy commit mới nhất từ GitHub API
+        const commitRes = await fetch("https://api.github.com/repos/mindolla24/WebCheckPIC/commits?path=AutoUpdatePIC.json");
+        const commitData = await commitRes.json();
+        if (commitData?.length > 0) {
+          const last = new Date(commitData[0].commit.committer.date);
+          lastUpdate.textContent = "Cập nhật lần cuối: " + last.toLocaleString("vi-VN");
+        } else {
+          lastUpdate.textContent = "Không xác định thời gian cập nhật";
+        }
+
+      } catch (err) {
+        console.warn("⚠️ Lỗi tải dữ liệu:", err);
+        status.textContent = "Không thể tải dữ liệu";
+        status.className = "loading";
+        lastUpdate.textContent = "";
+        if (retry < maxRetries) setTimeout(() => loadData(retry + 1), 4000);
       }
     }
 
@@ -230,7 +285,7 @@
         r["Material name"]?.toLowerCase().includes(keyword)
       );
       if (found) displayCard(found);
-      else resultsBox.innerHTML = "<p>❌ Không tìm thấy kết quả phù hợp.</p>";
+      else resultsBox.innerHTML = "<p style='text-align:center;'>❌ Không tìm thấy kết quả phù hợp.</p>";
       suggestions.innerHTML = "";
     }
 
@@ -245,4 +300,4 @@
     }
   </script>
 </body>
-</html><!-- redeploy -->
+</html>
